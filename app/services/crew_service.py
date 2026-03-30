@@ -3,6 +3,7 @@ from typing import Any
 
 from app.core.config import SIX_ELEMENT_ORDER, load_runtime_config
 from app.core.exceptions import BrainstormExecutionError
+from app.rag.tool import build_sales_knowledge_tool
 from app.services.parser import parse_markdown_payload
 from app.services.rules import SixElementRule, format_rules_context, load_six_element_rules
 
@@ -23,7 +24,11 @@ def format_project_context(project_name: str, six_element_inputs: dict[str, str]
     return "\n\n".join(blocks)
 
 
-def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
+def build_sales_battle_crew(
+    shared_llm: Any,
+    debug_mode: bool = False,
+    knowledge_tool: Any | None = None,
+):
     """Build the six-element battle crew with a closing agent."""
     try:
         from crewai import Agent, Crew, Process, Task
@@ -42,6 +47,7 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
+        tools=[],
     )
 
     strategist_agent = Agent(
@@ -54,6 +60,7 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
+        tools=[knowledge_tool] if knowledge_tool is not None else [],
     )
 
     challenger_agent = Agent(
@@ -66,6 +73,7 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
+        tools=[knowledge_tool] if knowledge_tool is not None else [],
     )
 
     closer_agent = Agent(
@@ -78,6 +86,7 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
+        tools=[knowledge_tool] if knowledge_tool is not None else [],
     )
 
     task_1_diagnosis = Task(
@@ -102,10 +111,12 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
             "请只针对上一步识别出的高危卡点，输出初版销售破局动作。\n\n"
             "你必须同时参考以下规则库：\n{rules_context}\n\n"
             "要求：\n"
+            "0. 如提供了 sales_knowledge_search 工具，先检索与当前项目最相关的 product 与 sales 知识，再设计动作。\n"
             "1. 只针对高危卡点出招，不要复述全部诊断。\n"
             "2. 每条动作必须包含：对应六要素、动作目标、执行动作、依赖资源、触达人、预期结果。\n"
             "3. 只能依据六要素策略库出招，不能凭空发挥。\n"
-            "4. 动作必须可执行，避免抽象口号。"
+            "4. 动作必须可执行，避免抽象口号。\n"
+            "5. 如果检索为空，必须明确基于当前项目上下文判断，不要伪造已有案例、客户反馈或产品能力。"
         ),
         expected_output=(
             "一份初版破局动作清单，每条动作都包含对应要素、目标、动作、依赖资源、触达人和预期结果。"
@@ -123,9 +134,11 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
             "3. 竞争对手最可能的反制方式\n"
             "4. 必须修正的点\n\n"
             "要求：\n"
+            "0. 如提供了 sales_knowledge_search 工具，先检索与当前项目最相关的 product 与 sales 知识，再做压力测试。\n"
             "1. 必须逐条挑战初版动作，而不是泛泛评论。\n"
             "2. 不能生成最终方案，只能输出挑战意见和必须修正点。\n"
-            "3. 挑战要结合六要素中的权重、流程阶段和竞争风险。"
+            "3. 挑战要结合六要素中的权重、流程阶段和竞争风险。\n"
+            "4. 优先引用检索到的失败教训、产品能力边界和常见交付风险；若检索为空，必须明确这一点。"
         ),
         expected_output=(
             "一份蓝军挑战报告，包含对初版动作的逐条反驳、风险说明和必须修正点。"
@@ -138,13 +151,15 @@ def build_sales_battle_crew(shared_llm: Any, debug_mode: bool = False):
         description=(
             "请旁听完前面所有历史讨论后，只输出最终收口动作清单。\n\n"
             "要求：\n"
+            "0. 如提供了 sales_knowledge_search 工具，先检索与当前项目最相关的 product 与 sales 知识，再收口动作。\n"
             "1. 只提炼 3-5 条动作。\n"
             "2. 优先覆盖六要素中最薄弱、风险最高的环节。\n"
             "3. 每条动作必须固定格式：Who: ... | When: ... | Do What: ...\n"
             "4. Who 必须明确是销售本人、合作伙伴、技术人员、高层或其他角色。\n"
             "5. When 必须明确时间节点、最晚时间或阶段窗口。\n"
             "6. Do What 必须是可量化、可执行的动作，不允许空话。\n"
-            "7. 禁止输出前言、结论、分析、解释，只输出最终动作清单。"
+            "7. 优先使用检索到的成功打法、失败教训和产品能力边界来约束最终动作。\n"
+            "8. 禁止输出前言、结论、分析、解释，只输出最终动作清单。"
         ),
         expected_output=(
             "仅输出 3-5 条最终动作清单，每条使用 Who / When / Do What 格式，不包含其他说明。"
@@ -193,6 +208,7 @@ def run_brainstorm(
     active_rules = rules or load_six_element_rules(config.rules_path)
     rules_context = format_rules_context(active_rules)
     project_context = format_project_context(project_name, six_element_inputs)
+    knowledge_tool = build_sales_knowledge_tool(config)
 
     shared_llm = ChatOpenAI(
         model=config.model_name,
@@ -200,7 +216,11 @@ def run_brainstorm(
         base_url=config.api_base,
         temperature=0.4,
     )
-    crew = build_sales_battle_crew(shared_llm=shared_llm, debug_mode=debug or config.debug_mode)
+    crew = build_sales_battle_crew(
+        shared_llm=shared_llm,
+        debug_mode=debug or config.debug_mode,
+        knowledge_tool=knowledge_tool,
+    )
     inputs = {
         "project_name": project_name,
         "project_context": project_context,
