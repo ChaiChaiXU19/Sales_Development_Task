@@ -5,6 +5,9 @@ from openai import OpenAI
 from app.core.config import RagConfig
 
 
+TEXT_EMBEDDING_V4_MAX_BATCH_SIZE = 10
+
+
 class EmbeddingClient:
     def __init__(
         self,
@@ -13,11 +16,13 @@ class EmbeddingClient:
         api_base: str,
         model: str,
         embedding_dimension: int,
-        batch_size: int = 32,
+        batch_size: int = TEXT_EMBEDDING_V4_MAX_BATCH_SIZE,
     ) -> None:
+        if batch_size <= 0:
+            raise ValueError("batch_size 必须大于 0。")
         self.model = model
         self.embedding_dimension = embedding_dimension
-        self.batch_size = batch_size
+        self.batch_size = self._resolve_batch_size(model=model, batch_size=batch_size)
         client_kwargs: dict[str, str] = {"api_key": api_key}
         if api_base:
             client_kwargs["base_url"] = api_base
@@ -34,6 +39,12 @@ class EmbeddingClient:
 
     def embed_query(self, query: str) -> list[float]:
         return self.embed_texts([query])[0]
+
+    @staticmethod
+    def _resolve_batch_size(*, model: str, batch_size: int) -> int:
+        if model == "text-embedding-v4":
+            return min(batch_size, TEXT_EMBEDDING_V4_MAX_BATCH_SIZE)
+        return batch_size
 
     def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:

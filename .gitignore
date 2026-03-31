@@ -11,3 +11,9 @@ Library/
 .claude/
 .codex/
 .config/
+
+# Keep knowledge directories in Git, but never commit real knowledge files.
+knowledge/product/*
+knowledge/sales/*
+!knowledge/product/.gitkeep
+!knowledge/sales/.gitkeep

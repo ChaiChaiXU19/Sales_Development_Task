@@ -96,6 +96,7 @@ cp .env.example .env
   - `EMBEDDING_MODEL=text-embedding-v4`
   - `EMBEDDING_DIMENSION=1024`
 - `text-embedding-v4` 支持多档维度；首版默认使用 `1024`
+- 按阿里云 `text-embedding-v4` 当前限制，项目会自动按最多 `10` 条文本一批调用 Embedding API
 - 如果不配置 RAG，系统会自动降级为原来的纯 prompt 流程
 
 ## 4. 启动 PostgreSQL + pgvector
@@ -154,6 +155,11 @@ knowledge/
   - 成功案例
   - 失败教训
   - 常用推进话术
+
+注意：
+
+- `knowledge/product/` 和 `knowledge/sales/` 中的真实知识文件只用于本地入库，不应提交到 GitHub 仓库
+- 仓库仅保留目录占位文件 `.gitkeep`
 
 支持文件类型：
 
@@ -217,6 +223,7 @@ python scripts/rebuild_knowledge.py
 - 使用 `source_path + sha256` 判断文档是否变化
 - 未变化文件会跳过，不重复写入
 - 已变化文件会更新文档记录并重建其 chunks
+- 使用 `text-embedding-v4` 时，入库脚本会自动将待向量化文本按最多 `10` 条一批发送到兼容接口
 - 数据库 schema 和索引会在脚本启动时自动补齐
 
 ## 7. 运行 CLI
