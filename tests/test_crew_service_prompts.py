@@ -30,6 +30,7 @@ class CrewServicePromptTests(unittest.TestCase):
     def test_diagnosis_prompt_requires_blind_spots_and_deficiencies(self) -> None:
         diagnosis_prompt = build_task_prompt_specs()["diagnosis"]
 
+        self.assertIn("check_rule_violations", diagnosis_prompt.description)
         self.assertIn("核心盲区", diagnosis_prompt.description)
         self.assertIn("核心不足", diagnosis_prompt.description)
         self.assertIn("以为知道、但实际未经验证", diagnosis_prompt.description)
@@ -46,6 +47,9 @@ class CrewServicePromptTests(unittest.TestCase):
     def test_closer_prompt_requires_probe_action_when_blind_spots_exist(self) -> None:
         closer_prompt = build_task_prompt_specs()["closer"]
 
+        self.assertIn("action_format_validator", closer_prompt.description)
+        self.assertIn("action_executability_check", closer_prompt.description)
+        self.assertIn("未通过，必须先修正后再输出最终结果", closer_prompt.description)
         self.assertIn("若存在核心盲区", closer_prompt.description)
         self.assertIn("至少包含 1 条探雷/验证信息动作", closer_prompt.description)
         self.assertIn("至少有 1 条用于验证信息", closer_prompt.expected_output)

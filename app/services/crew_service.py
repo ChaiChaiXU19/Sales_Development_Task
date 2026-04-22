@@ -6,6 +6,7 @@ from app.core.exceptions import BrainstormExecutionError
 from app.rag.tool import build_sales_knowledge_tool
 from app.services.parser import parse_markdown_payload
 from app.services.rules import SixElementRule, format_rules_context, load_six_element_rules
+from app.services.tools import build_core_sales_tools
 
 
 @dataclass
@@ -64,6 +65,7 @@ def build_task_prompt_specs() -> dict[str, TaskPromptSpec]:
                 "【六要素规则】\n{rules_context}\n\n"
                 f"{OUTPUT_STYLE_GUARDRAILS}\n\n"
                 "要求：\n"
+                "0. 先调用 check_rule_violations 工具，检查当前项目是否触碰六要素红线；若工具返回无明显违规，也要明确说明。\n"
                 "1. 必须按六要素逐项输出。\n"
                 "2. 每个要素固定包含：已知事实、关键缺口、核心盲区、核心不足、风险等级、高危卡点。\n"
                 "3. 核心盲区指的是：团队当前以为知道、但实际未经验证的关键信息，不要把猜测写成事实。\n"
@@ -131,17 +133,18 @@ def build_task_prompt_specs() -> dict[str, TaskPromptSpec]:
                 f"{OUTPUT_STYLE_GUARDRAILS}\n\n"
                 f"{ACTION_STYLE_REQUIREMENTS}\n\n"
                 "要求：\n"
-                "0. 如提供了 sales_knowledge_search 工具，先检索与当前项目最相关的 product 与 sales 知识，再收口动作。\n"
-                "1. 只提炼 3-5 条动作。\n"
-                "2. 优先覆盖六要素中最薄弱、风险最高的环节。\n"
-                "3. 若存在核心盲区，最终动作中必须至少包含 1 条探雷/验证信息动作，用来验证信息或消除盲区。\n"
-                "4. 每条动作必须固定格式：Who: ... | When: ... | Do What: ... | How to say: ...\n"
-                "5. Who 必须明确是销售本人、合作伙伴、技术人员、高层或其他角色。\n"
-                "6. When 必须明确时间节点、最晚时间或阶段窗口。\n"
-                "7. Do What 必须是可量化、可执行的动作，并已经吸收挑战阶段给出的柔和切入点。\n"
-                "8. How to say 必须是一句可以直接复制给客户或关键人的实战话术。\n"
-                "9. 优先使用检索到的成功打法、失败教训和产品能力边界来约束最终动作。\n"
-                "10. 禁止输出前言、结论、分析、解释，只输出最终动作清单。"
+                "0. 每条候选动作在输出前都要先调用 action_format_validator 和 action_executability_check；如果未通过，必须先修正后再输出最终结果。\n"
+                "1. 如提供了 sales_knowledge_search 工具，先检索与当前项目最相关的 product 与 sales 知识，再收口动作。\n"
+                "2. 只提炼 3-5 条动作。\n"
+                "3. 优先覆盖六要素中最薄弱、风险最高的环节。\n"
+                "4. 若存在核心盲区，最终动作中必须至少包含 1 条探雷/验证信息动作，用来验证信息或消除盲区。\n"
+                "5. 每条动作必须固定格式：Who: ... | When: ... | Do What: ... | How to say: ...\n"
+                "6. Who 必须明确是销售本人、合作伙伴、技术人员、高层或其他角色。\n"
+                "7. When 必须明确时间节点、最晚时间或阶段窗口。\n"
+                "8. Do What 必须是可量化、可执行的动作，并已经吸收挑战阶段给出的柔和切入点。\n"
+                "9. How to say 必须是一句可以直接复制给客户或关键人的实战话术。\n"
+                "10. 优先使用检索到的成功打法、失败教训和产品能力边界来约束最终动作。\n"
+                "11. 禁止输出前言、结论、分析、解释，只输出最终动作清单。"
             ),
             expected_output=(
                 "仅输出 3-5 条最终动作清单，每条使用 Who / When / Do What / How to say 格式，"
@@ -165,6 +168,10 @@ def build_sales_battle_crew(
         ) from error
 
     prompt_specs = build_task_prompt_specs()
+    core_tools = build_core_sales_tools()
+    diagnostician_tool = core_tools["check_rule_violations"]
+    action_format_tool = core_tools["action_format_validator"]
+    action_executability_tool = core_tools["action_executability_check"]
 
     diagnostician_agent = Agent(
         role="情报侦察兵（The Diagnostician）",
@@ -177,7 +184,7 @@ def build_sales_battle_crew(
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
-        tools=[],
+        tools=[diagnostician_tool],
     )
 
     strategist_agent = Agent(
@@ -219,7 +226,11 @@ def build_sales_battle_crew(
         llm=shared_llm,
         verbose=debug_mode,
         allow_delegation=False,
-        tools=[knowledge_tool] if knowledge_tool is not None else [],
+        tools=(
+            [knowledge_tool, action_format_tool, action_executability_tool]
+            if knowledge_tool is not None
+            else [action_format_tool, action_executability_tool]
+        ),
     )
 
     task_1_diagnosis = Task(
