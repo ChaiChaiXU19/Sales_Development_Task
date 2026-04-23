@@ -42,51 +42,51 @@ class CoreSalesToolsTests(unittest.TestCase):
 
         self.assertIn("Check Rule Violations Error", result)
 
-    def test_action_format_validator_accepts_english_format(self) -> None:
+    def test_action_format_validator_accepts_new_format(self) -> None:
         tool = ActionFormatValidatorTool()
 
         result = tool._run(
-            "Who: 销售经理 | When: 今天下午 4 点前 | Do What: 给客户打电话确认预算审批节点 | "
-            "How to say: 我想趁今天把预算审批节奏确认一下，避免我们后面准备方向跑偏。"
+            "动作: 给客户打电话确认预算审批节点 | 时间期限: 今天下午 4 点前 | "
+            "对象: 采购负责人 | 目的: 确认预算审批节奏，避免后续准备方向跑偏。"
         )
 
         self.assertEqual(result, "Format Valid: True")
 
-    def test_action_format_validator_accepts_chinese_format(self) -> None:
+    def test_action_format_validator_accepts_common_deadline_alias(self) -> None:
         tool = ActionFormatValidatorTool()
 
         result = tool._run(
-            "谁: 销售本人 | 时间: 本周三中午前 | 动作: 约技术负责人做 20 分钟澄清会 | "
-            "话术: 我们想先把测试边界对齐，这样后面你们内部汇报会更省事。"
+            "动作: 约技术负责人做 20 分钟澄清会 | 截止时间: 本周三中午前 | "
+            "对象: 技术负责人 | 目的: 对齐测试边界，方便客户内部汇报。"
         )
 
         self.assertEqual(result, "Format Valid: True")
 
-    def test_action_format_validator_reports_missing_talk_track(self) -> None:
+    def test_action_format_validator_reports_missing_purpose(self) -> None:
         tool = ActionFormatValidatorTool()
 
         result = tool._run(
-            "Who: 销售本人 | When: 本周内 | Do What: 约客户做预算确认 | How to say: ..."
+            "动作: 约客户做预算确认 | 时间期限: 本周内 | 对象: 客户采购接口人 | 目的: ..."
         )
 
         self.assertIn("Format Valid: False", result)
-        self.assertIn("How to say", result)
+        self.assertIn("目的", result)
 
     def test_action_format_validator_rejects_label_only_fields(self) -> None:
         tool = ActionFormatValidatorTool()
 
-        result = tool._run("Who:   | When: ... | Do What: 待补充 | How to say: ...")
+        result = tool._run("动作: 待补充 | 时间期限: ... | 对象:   | 目的: ...")
 
         self.assertIn("Format Valid: False", result)
-        self.assertIn("Who", result)
-        self.assertIn("When", result)
-        self.assertIn("Do What", result)
-        self.assertIn("How to say", result)
+        self.assertIn("动作", result)
+        self.assertIn("时间期限", result)
+        self.assertIn("对象", result)
+        self.assertIn("目的", result)
 
     def test_action_executability_check_detects_one_ban_word(self) -> None:
         tool = ActionExecutabilityCheckTool()
 
-        result = tool._run("Who: 销售本人 | When: 今天 | Do What: 加强沟通 | How to say: 我再和您同步一下。")
+        result = tool._run("动作: 加强沟通 | 时间期限: 今天 | 对象: 客户项目接口人 | 目的: 推进关系。")
 
         self.assertIn("Executability Warning", result)
         self.assertIn("加强沟通", result)
@@ -104,8 +104,8 @@ class CoreSalesToolsTests(unittest.TestCase):
         tool = ActionExecutabilityCheckTool()
 
         result = tool._run(
-            "Who: 销售本人 | When: 明天上午 | Do What: 给采购负责人打一通 5 分钟电话确认发标时间 | "
-            "How to say: 我想先把时间点对齐，方便我们内部提前准备材料。"
+            "动作: 给采购负责人打一通 5 分钟电话确认发标时间 | 时间期限: 明天上午 | "
+            "对象: 采购负责人 | 目的: 对齐发标时间，便于内部提前准备材料。"
         )
 
         self.assertEqual(result, "Action Executable: True")

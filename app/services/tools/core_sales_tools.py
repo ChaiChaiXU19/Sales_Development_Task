@@ -101,21 +101,21 @@ PLACEHOLDER_VALUES = {
 }
 
 ACTION_FIELD_PATTERNS: dict[str, list[re.Pattern[str]]] = {
-    "Who": [
-        re.compile(r"(?is)(?:^|\|)\s*Who\s*[:：]\s*([^|\n]+)"),
-        re.compile(r"(?is)(?:^|\|)\s*谁\s*[:：]\s*([^|\n]+)"),
+    "动作": [
+        re.compile(r"(?is)(?:^|\|)\s*动作\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\|)\s*(?:Action|Do\s*What)\s*[:：]\s*([^|\n]+)"),
     ],
-    "When": [
-        re.compile(r"(?is)(?:^|\|)\s*When\s*[:：]\s*([^|\n]+)"),
-        re.compile(r"(?is)(?:^|\|)\s*(?:时间|何时)\s*[:：]\s*([^|\n]+)"),
+    "时间期限": [
+        re.compile(r"(?is)(?:^|\|)\s*时间期限\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\|)\s*(?:时间|截止时间|最晚时间|Deadline|When)\s*[:：]\s*([^|\n]+)"),
     ],
-    "Do What": [
-        re.compile(r"(?is)(?:^|\|)\s*Do\s*What\s*[:：]\s*([^|\n]+)"),
-        re.compile(r"(?is)(?:^|\|)\s*(?:动作|做什么)\s*[:：]\s*([^|\n]+)"),
+    "对象": [
+        re.compile(r"(?is)(?:^|\|)\s*对象\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\|)\s*(?:Target|Who)\s*[:：]\s*([^|\n]+)"),
     ],
-    "How to say": [
-        re.compile(r"(?is)(?:^|\|)\s*How\s*to\s*say\s*[:：]\s*([^|\n]+)"),
-        re.compile(r"(?is)(?:^|\|)\s*(?:话术|怎么说|如何说)\s*[:：]\s*([^|\n]+)"),
+    "目的": [
+        re.compile(r"(?is)(?:^|\|)\s*目的\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\|)\s*(?:Goal|Purpose)\s*[:：]\s*([^|\n]+)"),
     ],
 }
 
@@ -229,8 +229,8 @@ class ActionFormatValidatorTool(BaseTool):
     """Validate whether one sales action contains the required four fields.
 
     This tool is intended for the Closer agent. It verifies that one action
-    clearly contains Who, When, Do What, and How to say in either English or
-    Chinese label form, and it rejects placeholder-only values.
+    clearly contains 动作、时间期限、对象、目的 in the new closer contract,
+    and it rejects placeholder-only values.
 
     Args:
         action_text: One candidate sales action from the closer output.
@@ -242,8 +242,8 @@ class ActionFormatValidatorTool(BaseTool):
 
     name: str = "action_format_validator"
     description: str = (
-        "校验单条销售动作是否完整包含 Who、When、Do What、How to say，"
-        "兼容中文标签如谁、时间、动作、话术。"
+        "校验单条销售动作是否完整包含 动作、时间期限、对象、目的，"
+        "兼容常见别名如时间、截止时间、Who、When、Goal。"
     )
     args_schema: Type[BaseModel] = ActionFormatValidatorInput
 
@@ -261,8 +261,8 @@ class ActionFormatValidatorTool(BaseTool):
             normalized = action_text.strip()
             if not normalized:
                 return (
-                    "Format Valid: False. Missing: [Who, When, Do What, How to say]. "
-                    "请补充谁去做、什么时候做、具体做什么和具体话术。"
+                    "Format Valid: False. Missing: [动作, 时间期限, 对象, 目的]. "
+                    "请补充具体动作、最晚时间或阶段窗口、对应对象和本次动作要验证或推进的目的。"
                 )
 
             missing_fields = [
@@ -278,10 +278,10 @@ class ActionFormatValidatorTool(BaseTool):
                 return "Format Valid: True"
 
             field_hints = {
-                "Who": "请补充谁去执行动作。",
-                "When": "请补充明确的时间节点或阶段窗口。",
-                "Do What": "请补充具体可执行动作。",
-                "How to say": "请补充具体话术。",
+                "动作": "请补充具体可执行动作。",
+                "时间期限": "请补充明确的最晚时间、阶段窗口或截止时点。",
+                "对象": "请补充动作对应的关键对象。",
+                "目的": "请补充本次动作想验证、推进或锁定的目标。",
             }
             hints = " ".join(field_hints[field_name] for field_name in missing_fields)
             return f"Format Valid: False. Missing: {missing_fields}. {hints}"

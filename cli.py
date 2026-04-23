@@ -41,6 +41,9 @@ def main() -> int:
             print(f"\n----- {task_name} Start -----")
             print(task_output)
             print(f"----- {task_name} End -----")
+        if result.closer_failure_reason:
+            print("\n[DEBUG] closer_failure_reason:")
+            print(result.closer_failure_reason)
 
     return 0
 

@@ -14,8 +14,8 @@ except ModuleNotFoundError:
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 RULES_XLSX_PATH = DATA_DIR / "six_elements_rules.xlsx"
-DEFAULT_API_BASE = "https://api.deepseek.com"
-DEFAULT_MODEL_NAME = "deepseek-chat"
+DEFAULT_API_BASE = "https://api.minimaxi.com/v1"
+DEFAULT_MODEL_NAME = "MiniMax-M2.7-highspeed"
 DEFAULT_CORS_ALLOW_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -127,7 +127,7 @@ def write_api_key_to_local_env(env_path: Path, api_key: str) -> None:
 def prompt_and_persist_api_key(env_path: Path) -> str:
     """Prompt once for API key, save it to .env, and restrict file permissions."""
     try:
-        api_key = getpass.getpass("请输入 OPENAI/DeepSeek API Key（输入内容不会显示）: ").strip()
+        api_key = getpass.getpass("请输入 MiniMax API Key（输入内容不会显示）: ").strip()
     except (EOFError, KeyboardInterrupt) as error:
         raise ConfigError("未获取到 API Key，已取消输入。") from error
 
@@ -187,8 +187,8 @@ def load_runtime_config(
         or os.getenv("api_key", "").strip()
     )
     api_base = (
-        os.getenv("OPENAI_API_BASE", "").strip()
-        or os.getenv("OPENAI_BASE_URL", "").strip()
+        os.getenv("OPENAI_BASE_URL", "").strip()
+        or os.getenv("OPENAI_API_BASE", "").strip()
         or os.getenv("DEEPSEEK_API_BASE", "").strip()
         or DEFAULT_API_BASE
     )
@@ -221,7 +221,7 @@ def load_runtime_config(
 
     if require_api_key and not api_key:
         raise ConfigError(
-            "缺少 OPENAI_API_KEY。请在项目根目录创建 .env 并配置，或通过 CLI 首次运行时输入 key。"
+            "缺少 API Key。请在项目根目录 .env 中配置 OPENAI_API_KEY（MiniMax OpenAI-compatible 接口），或配置兼容字段后重试。"
         )
 
     if api_key:

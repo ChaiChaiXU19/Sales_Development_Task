@@ -2,11 +2,11 @@
 
 一个基于 FastAPI + CrewAI 的“多智能体销售头脑风暴系统”。
 
-系统输入一个销售项目的 Markdown 情报，结合“项目六要素”规则库进行多轮分析，最终输出 3-5 条可执行的销售下一步动作。当前版本已经支持第三阶段 RAG，能够将产品知识和真实销售经验注入到策略、挑战、收口 3 个 Agent 中。
+系统输入一个销售项目的 Markdown 情报，结合“项目六要素”规则库进行多轮分析，最终输出一段简短诊断和 3-5 条可执行的销售下一步动作建议。当前版本已经支持第三阶段 RAG，能够将产品知识和真实销售经验注入到策略、挑战、收口 3 个 Agent 中。
 
 ## 1. 功能概览
 
-- CLI 运行：读取单个 Markdown 文件，输出最终《销售下一步动作计划》
+- CLI 运行：读取单个 Markdown 文件，输出最终《销售简短诊断与下一步动作建议》
 - API 服务：提供健康检查和 `/api/v1/brainstorm` 头脑风暴接口
 - 六要素规则库：从 `data/six_elements_rules.xlsx` 加载销售分析标准
 - RAG 检索：使用 PostgreSQL + `pgvector` 作为向量数据库
@@ -71,7 +71,7 @@ cp .env.example .env
 
 - 聊天模型配置
   - `OPENAI_API_KEY`
-  - `OPENAI_API_BASE`
+  - `OPENAI_BASE_URL`
   - `MODEL_NAME`
 - RAG 数据库配置
   - `RAG_PG_HOST`
@@ -88,6 +88,10 @@ cp .env.example .env
 说明：
 
 - 聊天模型配置用于 CrewAI 任务执行
+- 当前默认聊天模型为 MiniMax `MiniMax-M2.7-highspeed`
+- 聊天模型通过 OpenAI-compatible 接口接入，推荐默认值：
+  - `OPENAI_BASE_URL=https://api.minimaxi.com/v1`
+  - `MODEL_NAME=MiniMax-M2.7-highspeed`
 - Embedding 配置用于知识向量化
 - 这两套配置是独立的，互不强耦合
 - 当前推荐的 embedding provider 是阿里百炼千问，走 OpenAI-compatible 接口
@@ -293,7 +297,8 @@ Diagnostician 不使用知识库，避免诊断被外部经验污染。
 - Diagnostician 在诊断阶段除已知事实、关键缺口、风险等级、高危卡点外，还会显式输出 `核心盲区` 与 `核心不足`
 - Strategist 的动作设计要优先回应诊断中暴露出的高危卡点、核心盲区和核心不足
 - Challenger 在压力测试阶段会显式输出 `策略盲区揭示` 与 `执行资源不足`
-- Closer 若识别到前序存在核心盲区，最终 3-5 条动作中必须至少包含 1 条探雷/验证信息动作
+- Closer 若识别到前序存在核心盲区，最终动作建议中必须至少包含 1 条探雷/验证信息动作，并在前面补一段简短诊断
+- Closer 的最终动作建议固定字段为 `动作 / 时间期限 / 对象 / 目的`
 
 ## 10. 测试
 
@@ -317,12 +322,12 @@ python -m compileall app scripts tests
 
 ## 11. 常见问题
 
-### 11.1 `缺少 OPENAI_API_KEY`
+### 11.1 `缺少 API Key`
 
 说明聊天模型配置未提供。补齐 `.env` 中的：
 
 - `OPENAI_API_KEY`
-- `OPENAI_API_BASE`
+- `OPENAI_BASE_URL`
 - `MODEL_NAME`
 
 ### 11.2 `RAG 配置不完整`
