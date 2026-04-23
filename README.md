@@ -295,11 +295,29 @@ Diagnostician 不使用知识库，避免诊断被外部经验污染。
 当前 4 个 Agent 的输出约束补充如下：
 
 - Diagnostician 在诊断阶段除已知事实、关键缺口、风险等级、高危卡点外，还会显式输出 `核心盲区` 与 `核心不足`
+- Diagnostician 诊断正文末尾会追加 `[[STRATEGY_HANDOFF]]` 内部交接块，只保留 3-5 个最高优先级风险给下游使用
 - Strategist 的动作设计要优先回应诊断中暴露出的高危卡点、核心盲区和核心不足
+- Strategist 不再接收整份诊断正文，而是只消费 `project_context + rules_context + STRATEGY_HANDOFF`，并在正文末尾追加 `[[CHALLENGE_HANDOFF]]`
 - Challenger 在压力测试阶段会显式输出 `策略盲区揭示` 与 `执行资源不足`
+- Challenger 不再接收整份 diagnosis/strategy raw，而是只消费 `project_context + STRATEGY_HANDOFF + CHALLENGE_HANDOFF`，并在正文末尾追加 `[[CLOSER_HANDOFF]]`
 - Closer 若识别到前序存在核心盲区，最终文本中必须至少包含 1 个探雷/验证信息动作
+- Closer 不再“旁听所有历史讨论”，而是只消费 `project_context + STRATEGY_HANDOFF + CLOSER_HANDOFF`
 - Closer 只输出 3-5 个普通文本步骤，每个步骤包含 `当前处境风险 / 下一步动作 / 时间期限 / 对接对象 / 核心目的`
-- API 只返回最终展示字段 `closer_result`；该字段直接使用 Closer 原始输出，不做后处理修复、校验或兜底改写
+- 系统内部会对 `strategy / challenge / closer` 做阶段契约校验，检查是否出现缺字段或诊断串味信号；本轮只做 debug 观测，不自动重试
+- API 只返回最终展示字段 `closer_result`；该字段仍直接使用 Closer 原始输出，不做后处理修复、校验失败重写或兜底改写
+
+当前内部执行链路已经改为显式分阶段执行，而不是让 CrewAI 自动把前序整段 `raw` 文本灌给下一个 Agent：
+
+1. Diagnostician 输出诊断报告 + `[[STRATEGY_HANDOFF]]`
+2. Strategist 只基于 `STRATEGY_HANDOFF` 设计初版动作，并输出 `[[CHALLENGE_HANDOFF]]`
+3. Challenger 只基于动作 handoff 做逐条挑战，并输出 `[[CLOSER_HANDOFF]]`
+4. Closer 只基于风险 handoff 和修正项 handoff 收敛最终《销售当前处境风险及下一步行动规划》
+
+如果开启 `debug=true`，除了三阶段原始文本，还会看到：
+
+- 提取出的 `strategy_handoff / challenge_handoff / closer_handoff`
+- 各阶段的 contract validation 结果
+- handoff 缺失时的明确错误信息
 
 ## 10. 测试
 

@@ -28,7 +28,6 @@ class TaskPromptSpec:
 class HandoffExtraction:
     tag: str
     block: str
-    body: str
     error: str | None = None
 
 
@@ -561,14 +560,12 @@ def _extract_handoff_block(text: str, tag: str) -> HandoffExtraction:
         return HandoffExtraction(
             tag=tag,
             block=_build_missing_handoff_placeholder(tag, error),
-            body="",
             error=error,
         )
 
     return HandoffExtraction(
         tag=tag,
         block=match.group(0).strip(),
-        body=match.group("body").strip(),
         error=None,
     )
 
@@ -639,44 +636,6 @@ def _validate_closer_steps(closer_result: str, crew_bundle: SalesBattleCrew) -> 
             )
         )
     return "\n\n".join(lines)
-
-
-def _run_legacy_sequential_crew(crew: Any, inputs: dict[str, str], debug: bool) -> BrainstormResult:
-    """Keep compatibility with tests or callers that patch in the old Crew shape."""
-    try:
-        result = crew.kickoff(inputs=inputs)
-    except Exception as error:
-        raise BrainstormExecutionError(f"任务执行失败: {error}") from error
-
-    task_outputs = list(getattr(result, "tasks_output", []) or [])
-    diagnosis_result = task_outputs[0].raw if len(task_outputs) > 0 else ""
-    strategy_result = task_outputs[1].raw if len(task_outputs) > 1 else ""
-    challenge_result = task_outputs[2].raw if len(task_outputs) > 2 else ""
-    closer_task_output = task_outputs[3] if len(task_outputs) > 3 else None
-
-    closer_result = (
-        closer_task_output.raw
-        if closer_task_output is not None and closer_task_output.raw is not None
-        else getattr(result, "raw", "")
-    )
-    if closer_result is None:
-        closer_result = ""
-
-    intermediate_results: dict[str, str] | None = None
-    if debug:
-        intermediate_results = {
-            "diagnosis_result": str(diagnosis_result),
-            "strategy_result": str(strategy_result),
-            "challenge_result": str(challenge_result),
-            "closer_raw_result": str(closer_result),
-        }
-
-    return BrainstormResult(
-        project_name=inputs["project_name"],
-        closer_result=str(closer_result),
-        parsed_inputs={},
-        intermediate_results=intermediate_results,
-    )
 
 
 def _run_structured_stage_pipeline(
@@ -803,23 +762,6 @@ def run_brainstorm(
         knowledge_tool=knowledge_tool,
         closer_llm=closer_llm,
     )
-
-    if hasattr(crew, "kickoff"):
-        legacy_result = _run_legacy_sequential_crew(
-            crew=crew,
-            inputs={
-                "project_name": project_name,
-                "project_context": project_context,
-                "rules_context": rules_context,
-            },
-            debug=debug,
-        )
-        return BrainstormResult(
-            project_name=project_name,
-            closer_result=legacy_result.closer_result,
-            parsed_inputs=six_element_inputs,
-            intermediate_results=legacy_result.intermediate_results,
-        )
 
     closer_result, intermediate_results = _run_structured_stage_pipeline(
         crew_bundle=crew,
