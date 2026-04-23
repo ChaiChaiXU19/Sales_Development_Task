@@ -110,7 +110,34 @@ class CoreSalesToolsTests(unittest.TestCase):
 
         self.assertEqual(result, "Action Executable: True")
 
-    def test_build_sales_battle_crew_mounts_new_tools(self) -> None:
+    def test_action_format_validator_accepts_closer_step_contract(self) -> None:
+        tool = ActionFormatValidatorTool()
+
+        result = tool._run(
+            "第一步-决策链相关风险及行动规划\n"
+            "当前处境风险：未明确采购负责人，导致后续推进存在决策链断点风险。\n"
+            "下一步动作：今天下午约支持者做 15 分钟信息校准沟通，确认采购负责人是谁。\n"
+            "时间期限：今天下班前\n"
+            "对接对象：支持者吴\n"
+            "核心目的：摸清采购角色，避免后续动作打在错误对象上。"
+        )
+
+        self.assertEqual(result, "Format Valid: True")
+
+    def test_action_executability_check_detects_quick_follow_up_phrase(self) -> None:
+        tool = ActionExecutabilityCheckTool()
+
+        result = tool._run(
+            "下一步动作：尽快跟进采购负责人，确认发标时间。\n"
+            "时间期限：明天中午前\n"
+            "对接对象：采购负责人\n"
+            "核心目的：确认流程时间表。"
+        )
+
+        self.assertIn("Executability Warning", result)
+        self.assertIn("尽快跟进", result)
+
+    def test_build_sales_battle_crew_mounts_closer_validation_tools(self) -> None:
         llm = LLM(model="openai/gpt-4o-mini", api_key="test", base_url="https://example.com/v1")
 
         crew = build_sales_battle_crew(shared_llm=llm, knowledge_tool=None)

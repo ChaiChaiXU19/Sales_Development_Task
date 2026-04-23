@@ -28,11 +28,16 @@ class CrewServicePromptTests(unittest.TestCase):
     def test_closer_output_format_uses_new_contract(self) -> None:
         closer_prompt = build_task_prompt_specs()["closer"]
 
-        self.assertIn("只输出一个 JSON 对象", closer_prompt.description)
-        self.assertIn("diagnosis_summary", closer_prompt.description)
-        self.assertIn("action_recommendations", closer_prompt.description)
-        self.assertIn("priority / action / deadline / target / goal / is_probe", closer_prompt.description)
-        self.assertIn("完整 JSON 对象", closer_prompt.expected_output)
+        self.assertIn("只输出普通文本段落", closer_prompt.description)
+        self.assertIn("不要输出 JSON、Markdown 表格", closer_prompt.description)
+        self.assertIn("第一步-决策链相关风险及行动规划", closer_prompt.description)
+        self.assertIn("当前处境风险：", closer_prompt.description)
+        self.assertIn("下一步动作：", closer_prompt.description)
+        self.assertIn("时间期限：", closer_prompt.description)
+        self.assertIn("对接对象：", closer_prompt.description)
+        self.assertIn("核心目的：", closer_prompt.description)
+        self.assertIn("销售当前处境风险及下一步行动规划", closer_prompt.description)
+        self.assertIn("普通文本格式", closer_prompt.expected_output)
 
     def test_diagnosis_prompt_requires_blind_spots_and_deficiencies(self) -> None:
         diagnosis_prompt = build_task_prompt_specs()["diagnosis"]
@@ -50,28 +55,50 @@ class CrewServicePromptTests(unittest.TestCase):
         self.assertIn("执行资源不足", challenge_prompt.description)
         self.assertIn("客户内部政治斗争", challenge_prompt.description)
         self.assertIn("隐藏影响者", challenge_prompt.description)
+        self.assertIn("[[CLOSER_HANDOFF]]", challenge_prompt.description)
 
     def test_closer_prompt_requires_probe_action_when_blind_spots_exist(self) -> None:
         closer_prompt = build_task_prompt_specs()["closer"]
 
-        self.assertIn("action_format_validator", closer_prompt.description)
-        self.assertIn("action_executability_check", closer_prompt.description)
-        self.assertIn("未通过，必须先修正后再输出最终结果", closer_prompt.description)
+        self.assertNotIn("action_format_validator", closer_prompt.description)
+        self.assertNotIn("action_executability_check", closer_prompt.description)
         self.assertIn("若存在核心盲区", closer_prompt.description)
-        self.assertIn("至少包含 1 条 is_probe=true 的探雷/验证信息动作", closer_prompt.description)
-        self.assertIn("至少 1 条动作的 is_probe 为 true", closer_prompt.expected_output)
+        self.assertIn("必须至少包含 1 个探雷/验证信息步骤", closer_prompt.description)
 
-    def test_closer_prompt_prioritizes_complete_structured_restatement(self) -> None:
+    def test_closer_prompt_prioritizes_complete_risk_plan_restatement(self) -> None:
         closer_prompt = build_task_prompt_specs()["closer"]
 
-        self.assertIn("不是只做风险诊断，而是先给出简短诊断结论", closer_prompt.description)
+        self.assertIn("不是输出简短诊断或普通动作建议", closer_prompt.description)
         self.assertIn("你必须输出完整最终版", closer_prompt.description)
-        self.assertIn("不能假设用户已经看过 strategy/challenge", closer_prompt.description)
+        self.assertIn("不能假设用户已经看过前序中间结果", closer_prompt.description)
         self.assertIn("不能写“补充动作五”", closer_prompt.description)
-        self.assertIn("action_recommendations 必须有 3-5 条", closer_prompt.description)
-        self.assertIn("如果信息不足，也要基于现有信息给出最稳妥的下一步动作", closer_prompt.description)
-        self.assertIn("不要输出 Markdown", closer_prompt.description)
-        self.assertIn("JSON 顶层字段只能是 diagnosis_summary 和 action_recommendations", closer_prompt.description)
+        self.assertIn("正文必须有 3-5 个步骤", closer_prompt.description)
+        self.assertIn("诊断报告不是最终答案", closer_prompt.description)
+        self.assertIn("最终答案必须是风险行动规划步骤", closer_prompt.description)
+        self.assertIn("如果信息不足，也要基于现有信息给出最稳妥的风险行动规划", closer_prompt.description)
+        self.assertIn("不要输出 JSON", closer_prompt.description)
+
+    def test_closer_prompt_requires_risk_statement_shape(self) -> None:
+        closer_prompt = build_task_prompt_specs()["closer"]
+
+        self.assertIn("当前处境风险必须写成“未完成/未验证/未明确某关键事项，导致某推进风险”", closer_prompt.description)
+        self.assertIn("下一步动作必须是补救动作", closer_prompt.description)
+        self.assertIn("决策链、POC/技术结论、采购流程、竞争对手、合作伙伴协同", closer_prompt.description)
+
+    def test_stage_prompts_define_internal_handoff_contracts(self) -> None:
+        prompt_specs = build_task_prompt_specs()
+
+        self.assertIn("[[STRATEGY_HANDOFF]]", prompt_specs["diagnosis"].description)
+        self.assertIn("[[CHALLENGE_HANDOFF]]", prompt_specs["strategy"].description)
+        self.assertIn("[[CLOSER_HANDOFF]]", prompt_specs["challenge"].description)
+
+    def test_strategy_prompt_explicitly_forbids_diagnosis_restatement(self) -> None:
+        strategy_prompt = build_task_prompt_specs()["strategy"]
+
+        self.assertIn("你不是诊断师", strategy_prompt.description)
+        self.assertIn("上游 handoff 只是素材", strategy_prompt.description)
+        self.assertIn("视为任务失败", strategy_prompt.description)
+        self.assertIn("诊断报告", strategy_prompt.description)
 
 
 if __name__ == "__main__":

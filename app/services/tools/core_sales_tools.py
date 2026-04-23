@@ -82,6 +82,7 @@ MOCK_RULE_LIBRARY: dict[str, list[dict[str, object]]] = {
 
 BAN_WORDS = [
     "加强沟通",
+    "尽快跟进",
     "建立信任",
     "持续跟进",
     "深入了解",
@@ -103,18 +104,22 @@ PLACEHOLDER_VALUES = {
 ACTION_FIELD_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "动作": [
         re.compile(r"(?is)(?:^|\|)\s*动作\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\n)\s*下一步动作\s*[:：]\s*([^\n]+)"),
         re.compile(r"(?is)(?:^|\|)\s*(?:Action|Do\s*What)\s*[:：]\s*([^|\n]+)"),
     ],
     "时间期限": [
         re.compile(r"(?is)(?:^|\|)\s*时间期限\s*[:：]\s*([^|\n]+)"),
         re.compile(r"(?is)(?:^|\|)\s*(?:时间|截止时间|最晚时间|Deadline|When)\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\n)\s*时间期限\s*[:：]\s*([^\n]+)"),
     ],
     "对象": [
         re.compile(r"(?is)(?:^|\|)\s*对象\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\n)\s*对接对象\s*[:：]\s*([^\n]+)"),
         re.compile(r"(?is)(?:^|\|)\s*(?:Target|Who)\s*[:：]\s*([^|\n]+)"),
     ],
     "目的": [
         re.compile(r"(?is)(?:^|\|)\s*目的\s*[:：]\s*([^|\n]+)"),
+        re.compile(r"(?is)(?:^|\n)\s*核心目的\s*[:：]\s*([^\n]+)"),
         re.compile(r"(?is)(?:^|\|)\s*(?:Goal|Purpose)\s*[:：]\s*([^|\n]+)"),
     ],
 }

@@ -30,7 +30,7 @@ def main() -> int:
     )
 
     print("=" * 80)
-    print("最终《销售下一步动作计划》")
+    print("最终《销售当前处境风险及下一步行动规划》")
     print("=" * 80)
     print(result.closer_result)
     print("=" * 80)
@@ -41,9 +41,6 @@ def main() -> int:
             print(f"\n----- {task_name} Start -----")
             print(task_output)
             print(f"----- {task_name} End -----")
-        if result.closer_failure_reason:
-            print("\n[DEBUG] closer_failure_reason:")
-            print(result.closer_failure_reason)
 
     return 0
 
